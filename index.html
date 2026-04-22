@@ -1284,77 +1284,167 @@ async function expPDF(){
   if(lbl)lbl.textContent='⏳ …';
   if(lblTop)lblTop.textContent='⏳ …';
 
-  const pgBuild=$id('pg-build');
-  const pgLand=$id('pg-land');
-  const wasHidden=pgBuild.style.display==='none';
-  if(wasHidden){
-    pgLand.style.display='none';
-    pgBuild.style.display='block';
-  }
-
   try{
-    const src=$id('cvo');
-    const name=($id('inp-name').value||'CV').trim().replace(/\s+/g,'_');
+    /* ── Collect data from the live CV DOM ── */
+    const cvName   = $id('cv-name')?.textContent||'';
+    const cvTitle  = $id('cv-title')?.textContent||'';
+    const cvCtsEl  = $id('cv-cts');
+    const contacts = cvCtsEl ? [...cvCtsEl.querySelectorAll('.cvct')].map(el=>el.textContent.trim()) : [];
+    const cvSum    = $id('cv-sum')?.textContent||'';
+    const showSum  = $id('cv-sum-sec')?.style.display!=='none' && cvSum;
 
-    const VARS={
-      '--b9':'#060f24','--b8':'#0c1a3e','--b7':'#1a45c8','--b6':'#2355e8','--b5':'#3b82f6',
-      '--b4':'#60a5fa','--b3':'#93c5fd','--b1':'#dbeafe','--b0':'#eff6ff',
-      '--g9':'#0b1220','--g8':'#1a2336','--g7':'#2e3f56','--g6':'#4a5d73','--g5':'#6b7f96',
-      '--g4':'#94a8be','--g3':'#c8d4e0','--g2':'#e4ecf4','--g1':'#f2f6fa','--g0':'#f8fafd',
-      '--wh':'#ffffff','--acc':'#f59e0b','--grn':'#0ea571','--red':'#ef4444'
-    };
-    function rv(v){return v.replace(/var\(([^)]+)\)/g,(_,k)=>VARS[k.split(',')[0].trim()]||'')}
+    /* Skills */
+    const skills = [...($id('cv-sk')?.querySelectorAll('.skch')||[])].map(el=>el.textContent.trim());
 
-    const clone=src.cloneNode(true);
-    clone.style.cssText='width:794px;max-width:794px;margin:0;padding:0;box-shadow:none;border-radius:0;overflow:visible;position:relative;background:#ffffff;font-family:Plus Jakarta Sans,sans-serif;';
-
-    const props=['color','background','backgroundColor','backgroundImage',
-      'borderColor','borderTopColor','borderRightColor','borderBottomColor','borderLeftColor',
-      'fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing',
-      'textTransform','textAlign','direction',
-      'padding','paddingTop','paddingRight','paddingBottom','paddingLeft',
-      'margin','marginTop','marginRight','marginBottom','marginLeft',
-      'width','minWidth','maxWidth','height','minHeight',
-      'display','flexDirection','flexWrap','justifyContent','alignItems','gap',
-      'gridTemplateColumns','position','top','right','bottom','left',
-      'overflow','borderRadius','borderWidth','borderStyle','boxSizing'];
-
-    clone.querySelectorAll('*').forEach(el=>{
-      const cs=window.getComputedStyle(el);
-      const inl=props.map(p=>{
-        let v=cs.getPropertyValue(p);
-        if(!v)return'';
-        v=rv(v);
-        return`${p.replace(/([A-Z])/g,m=>'-'+m.toLowerCase())}:${v}`;
-      }).filter(Boolean).join(';');
-      el.style.cssText=(el.style.cssText?el.style.cssText+';':'')+inl;
+    /* Languages */
+    const langItems = [...($id('cv-lng')?.querySelectorAll('.cvlang')||[])].map(el=>{
+      const spans = el.querySelectorAll('span');
+      const nm = spans[0]?.textContent.trim()||'';
+      const lv = el.querySelector('[style*="font-size:.66rem"]')?.textContent.trim()||'';
+      const bar = el.querySelector('.cvlbf');
+      const pct = bar ? parseInt(bar.style.width)||50 : 50;
+      return {nm,lv,pct};
     });
 
-    const wrap=document.createElement('div');
-    wrap.style.cssText='position:fixed;top:0;left:-9999px;width:794px;z-index:9999;background:#fff;';
-    wrap.appendChild(clone);
-    document.body.appendChild(wrap);
-    await new Promise(r=>setTimeout(r,200));
+    /* Education */
+    const eduItems = [...($id('cv-edu')?.querySelectorAll('.cvit')||[])].map(el=>({
+      t: el.querySelector('.cvit-t')?.textContent.trim()||'',
+      s: el.querySelector('.cvit-s')?.textContent.trim()||'',
+      m: el.querySelector('.cvit-m')?.textContent.trim()||'',
+    }));
+
+    /* Experience */
+    const expItems = [...($id('cv-exp')?.querySelectorAll('.cvit')||[])].map(el=>({
+      t: el.querySelector('.cvit-t')?.textContent.trim()||'',
+      s: el.querySelector('.cvit-s')?.textContent.trim()||'',
+      m: el.querySelector('.cvit-m')?.textContent.trim()||'',
+      d: el.querySelector('.cvit-d')?.innerHTML||'',
+    }));
+
+    const isAr = lang==='ar';
+    const dir  = isAr?'rtl':'ltr';
+    const fileName=($id('inp-name')?.value||'CV').trim().replace(/\s+/g,'_');
+
+    /* ── Build clean self-contained HTML for the PDF ── */
+    const html=`
+<!DOCTYPE html>
+<html lang="${lang}" dir="${dir}">
+<head>
+<meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Serif+Display&family=Cairo:wght@400;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:${isAr?"'Cairo',sans-serif":"'Plus Jakarta Sans',sans-serif"};color:#0b1220;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cv{width:794px;min-height:1123px;background:#fff;overflow:hidden}
+
+/* Header */
+.cvh{background:linear-gradient(140deg,#0b1220 0%,#12264a 100%);color:#fff;padding:38px 42px 28px;position:relative;overflow:hidden}
+.cvh::before{content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:rgba(59,130,246,.12)}
+.cvh::after{content:'';position:absolute;bottom:-40px;left:30%;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.03)}
+.cvname{font-family:${isAr?"'Amiri',serif":"'DM Serif Display',serif"};font-size:2rem;font-weight:400;color:#fff;letter-spacing:-.02em;line-height:1.1;margin-bottom:4px;position:relative;z-index:1}
+.cvjob{font-size:.75rem;font-weight:500;color:rgba(255,255,255,.52);letter-spacing:.14em;text-transform:uppercase;margin-bottom:16px;position:relative;z-index:1}
+.cvcts{display:flex;flex-wrap:wrap;gap:16px;position:relative;z-index:1}
+.cvct{display:flex;align-items:center;gap:5px;font-size:.72rem;color:rgba(255,255,255,.7)}
+
+/* Body grid */
+.cvbody{display:grid;grid-template-columns:200px 1fr;min-height:780px}
+
+/* Sidebar */
+.cvsb{background:#f5f8fc;padding:26px 16px;border-right:1px solid #dce4ef}
+.cvsec{margin-bottom:22px}
+.cvstit-sb{font-size:.55rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:#2e3f56;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #2e3f56}
+
+/* Skills */
+.skch{display:inline-block;background:#12264a;color:#fff;padding:3px 8px;border-radius:4px;font-size:.65rem;margin:2px 2px 2px 0;font-weight:400}
+
+/* Languages */
+.cvlang{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.cvlang-nm{font-size:.76rem;font-weight:600;color:#0b1220}
+.cvlang-lv{font-size:.63rem;color:#6b7f96;margin-bottom:3px}
+.cvlbar{width:66px;height:4px;background:#dce4ef;border-radius:2px;overflow:hidden}
+.cvlbf{height:100%;background:#2355e8;border-radius:2px}
+
+/* Education */
+.cvit{margin-bottom:13px}
+.cvit-t{font-size:.8rem;font-weight:700;color:#0b1220;margin-bottom:1px}
+.cvit-s{font-size:.72rem;color:#2355e8;font-weight:600;margin-bottom:1px}
+.cvit-m{font-size:.67rem;color:#6b7f96}
+
+/* Main */
+.cvmain{padding:26px 30px}
+.cvstit-main{font-size:.55rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:#2355e8;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #2355e8}
+.cvsum{font-size:.78rem;color:#4e5e72;line-height:1.72;font-style:italic;margin-bottom:0}
+
+/* Experience */
+.exp-it{margin-bottom:14px}
+.exp-t{font-size:.85rem;font-weight:700;color:#0b1220;margin-bottom:1px}
+.exp-s{font-size:.75rem;color:#2355e8;font-weight:600;margin-bottom:2px}
+.exp-m{font-size:.67rem;color:#6b7f96;margin-bottom:4px}
+.exp-d{font-size:.75rem;color:#4e5e72;line-height:1.68}
+</style>
+</head>
+<body>
+<div class="cv">
+  <div class="cvh">
+    <div class="cvname">${esc(cvName)}</div>
+    <div class="cvjob">${esc(cvTitle)}</div>
+    <div class="cvcts">${contacts.map(c=>`<div class="cvct">${esc(c)}</div>`).join('')}</div>
+  </div>
+  <div class="cvbody">
+    <div class="cvsb">
+      ${skills.length?`<div class="cvsec"><div class="cvstit-sb">${t.cvLSk}</div><div>${skills.map(s=>`<span class="skch">${esc(s)}</span>`).join('')}</div></div>`:''}
+      ${langItems.length?`<div class="cvsec"><div class="cvstit-sb">${t.cvLLng}</div>${langItems.map(l=>`<div class="cvlang"><span class="cvlang-nm">${esc(l.nm)}</span><div><div class="cvlang-lv">${esc(l.lv)}</div><div class="cvlbar"><div class="cvlbf" style="width:${l.pct}%"></div></div></div></div>`).join('')}</div>`:''}
+      ${eduItems.length?`<div class="cvsec"><div class="cvstit-sb">${t.cvLEdu}</div>${eduItems.map(e=>`<div class="cvit"><div class="cvit-t">${esc(e.t)}</div><div class="cvit-s">${esc(e.s)}</div><div class="cvit-m">${esc(e.m)}</div></div>`).join('')}</div>`:''}
+    </div>
+    <div class="cvmain">
+      ${showSum?`<div class="cvsec"><div class="cvstit-main">${t.cvLSum}</div><div class="cvsum">${esc(cvSum)}</div></div>`:''}
+      ${expItems.length?`<div class="cvsec"><div class="cvstit-main">${t.cvLExp}</div>${expItems.map(e=>`<div class="exp-it"><div class="exp-t">${esc(e.t)}</div><div class="exp-s">${esc(e.s)}</div><div class="exp-m">${esc(e.m)}</div>${e.d?`<div class="exp-d">${e.d}</div>`:''}</div>`).join('')}</div>`:''}
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
+
+    /* ── Mount hidden iframe, render, then export ── */
+    const iframe=document.createElement('iframe');
+    iframe.style.cssText='position:fixed;top:0;left:-9999px;width:794px;height:1123px;border:none;visibility:hidden;';
+    document.body.appendChild(iframe);
+
+    await new Promise(resolve=>{
+      iframe.onload=resolve;
+      iframe.srcdoc=html;
+    });
+
+    /* Give fonts time to load */
+    await new Promise(r=>setTimeout(r,800));
+
+    const cvEl=iframe.contentDocument.querySelector('.cv');
 
     await html2pdf().set({
-      margin:[0,0,0,0],
-      filename:`${name}_CVNova.pdf`,
-      image:{type:'jpeg',quality:0.97},
-      html2canvas:{scale:2,useCORS:true,allowTaint:true,letterRendering:true,scrollX:0,scrollY:0,windowWidth:794,backgroundColor:'#ffffff',logging:false},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true},
+      margin:0,
+      filename:`${fileName}_CVNova.pdf`,
+      image:{type:'jpeg',quality:1},
+      html2canvas:{
+        scale:2,
+        useCORS:true,
+        allowTaint:true,
+        letterRendering:true,
+        backgroundColor:'#ffffff',
+        logging:false,
+        width:794,
+        windowWidth:794,
+      },
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:false},
       pagebreak:{mode:'avoid-all'},
-    }).from(clone).save();
+    }).from(cvEl).save();
 
     showToast(t.toastPdfOk,'success');
+
   }catch(err){
     console.error('PDF error:',err);
     showToast(t.toastPdfErr,'error');
   }finally{
-    document.querySelectorAll('body > div[style*="-9999px"]').forEach(n=>n.remove());
-    if(wasHidden){
-      pgBuild.style.display='none';
-      pgLand.style.display='block';
-    }
+    document.querySelectorAll('iframe[style*="-9999px"]').forEach(n=>n.remove());
     btn.disabled=false;
     if(lbl)lbl.textContent=orig;
     if(lblTop)lblTop.textContent=orig;
