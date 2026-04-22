@@ -1266,12 +1266,115 @@ function genCV(){
   htm('cv-edu',edus.map(e=>`<div class="cvit"><div class="cvit-t" style="font-size:.79rem">${esc(e.deg||'')}</div><div class="cvit-s" style="font-size:.73rem">${esc(e.sch||'')}</div><div class="cvit-m">${[e.yr,e.ct].filter(Boolean).map(esc).join(' · ')}</div></div>`).join(''));
   $id('cv-edu-sec').style.display=edus.length?'':'none';
   txt('cv-exp-lbl',t.cvLExp);
-  htm('cv-exp',exps.map(e=>`<div class="cvit"><div class="cvit-t">${esc(e.tit||'')}</div><div class="cvit-s">${esc(e.co||'')}</div><div class="cvit-m">${e.per?`<span>📅 ${esc(e.per)}</span>`:''} ${e.ct?`<span>📍 ${esc(e.ct)}</span>`:''}</div>${e.des?`<div class="cvit-d">${esc(e.des).replace(/\n/g,'<br>')}</div>`:''}</div>`).join(''));
+  htm('cv-exp',exps.map(e=>`<div class="cvit"><div class="cvit-t">${esc(e.tit||'')}</div><div class="cvit-s">${esc(e.co||'')}</div><div class="cvit-m">${e.per?`<span>&#x25CF; ${esc(e.per)}</span>`:''} ${e.ct?`<span>&#x25CB; ${esc(e.ct)}</span>`:''}</div>${e.des?`<div class="cvit-d">${esc(e.des).replace(/\n/g,'<br>')}</div>`:''}</div>`).join(''));
   $id('cv-exp-sec').style.display=exps.length?'':'none';
   updateProgress();
 }
 
 /* ── EXPORT PDF ─── */
+function buildCVHtml(){
+  /* Collect all data from current state and build a fully self-contained HTML string */
+  const t=TR[lang];
+  const isAr=lang==='ar';
+  const dir=isAr?'rtl':'ltr';
+  const name=$id('inp-name').value||t.cvDName;
+  const job=$id('inp-job').value||t.cvDTitle;
+  const email=$id('inp-email').value;
+  const phone=$id('inp-phone').value;
+  const city=$id('inp-city').value;
+  const li=$id('inp-li').value;
+  const sum=$id('inp-sum').value;
+  const fontFace=isAr?'Cairo,sans-serif':'Plus Jakarta Sans,sans-serif';
+  const nameFace=isAr?'Amiri,serif':'DM Serif Display,serif';
+
+  const lvMap2={'Natif':100,'Courant':85,'Avancé':70,'Intermédiaire':50,'Débutant':30,'لغة أم':100,'طليق':85,'متقدم':70,'متوسط':50,'مبتدئ':30};
+
+  const ctsHtml=[
+    email?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.75);margin-${isAr?'left':'right'}:20px">&#x2709; ${e2(email)}</span>`:'',
+    phone?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.75);margin-${isAr?'left':'right'}:20px">&#x260E; ${e2(phone)}</span>`:'',
+    city?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.75);margin-${isAr?'left':'right'}:20px">&#x25CE; ${e2(city)}</span>`:'',
+    li?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.75)">&#x21D7; ${e2(li)}</span>`:'',
+  ].filter(Boolean).join('');
+
+  const skHtml=sks.map(s=>`<span style="display:inline-block;background:#12264a;color:#fff;padding:2px 8px;border-radius:3px;font-size:9px;margin:2px 2px 2px 0">${e2(s)}</span>`).join('');
+
+  const lngHtml=lngs.map(l=>{
+    const p=lvMap2[l.lv]||50;
+    return`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:10.5px;font-weight:600;color:#2e3f56">${e2(l.nm||'')}</span>
+      <div>
+        <div style="font-size:9px;color:#6b7f96;margin-bottom:2px;text-align:right">${e2(l.lv||'')}</div>
+        <div style="width:64px;height:4px;background:#d8e2ee;border-radius:2px;overflow:hidden">
+          <div style="width:${p}%;height:100%;background:#2355e8;border-radius:2px"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const eduHtml=edus.map(e=>`<div style="margin-bottom:12px">
+    <div style="font-size:10.5px;font-weight:700;color:#0b1220">${e2(e.deg||'')}</div>
+    <div style="font-size:9.5px;color:#2355e8;font-weight:600;margin-top:1px">${e2(e.sch||'')}</div>
+    <div style="font-size:9px;color:#6b7f96;margin-top:2px">${[e.yr,e.ct].filter(Boolean).map(e2).join(' · ')}</div>
+  </div>`).join('');
+
+  const expHtml=exps.map(e=>`<div style="margin-bottom:14px">
+    <div style="font-size:12px;font-weight:700;color:#0b1220">${e2(e.tit||'')}</div>
+    <div style="font-size:10.5px;color:#2355e8;font-weight:600;margin-top:1px">${e2(e.co||'')}</div>
+    <div style="font-size:9.5px;color:#6b7f96;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap">
+      ${e.per?`<span>&#x25CF; ${e2(e.per)}</span>`:''}
+      ${e.ct?`<span>&#x25CB; ${e2(e.ct)}</span>`:''}
+    </div>
+    ${e.des?`<div style="font-size:10.5px;color:#4e5e72;line-height:1.65;margin-top:5px">${e2(e.des).replace(/\n/g,'<br>')}</div>`:''}
+  </div>`).join('');
+
+  const secTitle=(label)=>`<div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:#2355e8;border-bottom:2px solid #2355e8;padding-bottom:5px;margin-bottom:10px">${label}</div>`;
+  const sbSecTitle=(label)=>`<div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:#2e3f56;border-bottom:2px solid #2e3f56;padding-bottom:5px;margin-bottom:10px">${label}</div>`;
+
+  const googleFonts=isAr
+    ?'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Amiri:wght@400;700&display=swap'
+    :'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap';
+
+  return`<!DOCTYPE html>
+<html lang="${lang}" dir="${dir}">
+<head>
+<meta charset="UTF-8"/>
+<link href="${googleFonts}" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:${fontFace};background:#fff;width:794px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+</style>
+</head>
+<body>
+<div style="width:794px;background:#fff;font-family:${fontFace};direction:${dir}">
+  <!-- HEADER -->
+  <div style="background:linear-gradient(140deg,#0b1220 0%,#12264a 100%);color:#fff;padding:36px 42px 30px;position:relative;overflow:hidden">
+    <div style="position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:rgba(59,130,246,.12)"></div>
+    <div style="position:relative;z-index:1">
+      <div style="font-family:${nameFace};font-size:28px;font-weight:400;letter-spacing:-0.02em;line-height:1.1;color:#fff;margin-bottom:4px">${e2(name)}</div>
+      <div style="font-size:10px;font-weight:500;color:rgba(255,255,255,.5);letter-spacing:0.13em;text-transform:uppercase;margin-bottom:16px">${e2(job)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${ctsHtml}</div>
+    </div>
+  </div>
+  <!-- BODY -->
+  <div style="display:grid;grid-template-columns:220px 1fr;min-height:900px">
+    <!-- SIDEBAR -->
+    <div style="background:#f5f8fc;padding:26px 18px;border-right:1px solid #dce4ef">
+      ${sks.length?`<div style="margin-bottom:22px">${sbSecTitle(t.cvLSk)}<div>${skHtml}</div></div>`:''}
+      ${lngs.length?`<div style="margin-bottom:22px">${sbSecTitle(t.cvLLng)}${lngHtml}</div>`:''}
+      ${edus.length?`<div style="margin-bottom:22px">${sbSecTitle(t.cvLEdu)}${eduHtml}</div>`:''}
+    </div>
+    <!-- MAIN -->
+    <div style="padding:28px 34px">
+      ${sum?`<div style="margin-bottom:22px">${secTitle(t.cvLSum)}<div style="font-size:11px;color:#4e5e72;line-height:1.75;font-style:italic">${e2(sum)}</div></div>`:''}
+      ${exps.length?`<div style="margin-bottom:22px">${secTitle(t.cvLExp)}${expHtml}</div>`:''}
+    </div>
+  </div>
+</div>
+</body></html>`;
+}
+
+function e2(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
 async function expPDF(){
   const btn=$id('btn-exp');
   const t=TR[lang];
@@ -1285,161 +1388,42 @@ async function expPDF(){
   if(lblTop)lblTop.textContent='⏳ …';
 
   try{
-    /* ── Collect data from the live CV DOM ── */
-    const cvName   = $id('cv-name')?.textContent||'';
-    const cvTitle  = $id('cv-title')?.textContent||'';
-    const cvCtsEl  = $id('cv-cts');
-    const contacts = cvCtsEl ? [...cvCtsEl.querySelectorAll('.cvct')].map(el=>el.textContent.trim()) : [];
-    const cvSum    = $id('cv-sum')?.textContent||'';
-    const showSum  = $id('cv-sum-sec')?.style.display!=='none' && cvSum;
+    const name=($id('inp-name').value||'CV').trim().replace(/\s+/g,'_');
+    const html=buildCVHtml();
 
-    /* Skills */
-    const skills = [...($id('cv-sk')?.querySelectorAll('.skch')||[])].map(el=>el.textContent.trim());
-
-    /* Languages */
-    const langItems = [...($id('cv-lng')?.querySelectorAll('.cvlang')||[])].map(el=>{
-      const spans = el.querySelectorAll('span');
-      const nm = spans[0]?.textContent.trim()||'';
-      const lv = el.querySelector('[style*="font-size:.66rem"]')?.textContent.trim()||'';
-      const bar = el.querySelector('.cvlbf');
-      const pct = bar ? parseInt(bar.style.width)||50 : 50;
-      return {nm,lv,pct};
-    });
-
-    /* Education */
-    const eduItems = [...($id('cv-edu')?.querySelectorAll('.cvit')||[])].map(el=>({
-      t: el.querySelector('.cvit-t')?.textContent.trim()||'',
-      s: el.querySelector('.cvit-s')?.textContent.trim()||'',
-      m: el.querySelector('.cvit-m')?.textContent.trim()||'',
-    }));
-
-    /* Experience */
-    const expItems = [...($id('cv-exp')?.querySelectorAll('.cvit')||[])].map(el=>({
-      t: el.querySelector('.cvit-t')?.textContent.trim()||'',
-      s: el.querySelector('.cvit-s')?.textContent.trim()||'',
-      m: el.querySelector('.cvit-m')?.textContent.trim()||'',
-      d: el.querySelector('.cvit-d')?.innerHTML||'',
-    }));
-
-    const isAr = lang==='ar';
-    const dir  = isAr?'rtl':'ltr';
-    const fileName=($id('inp-name')?.value||'CV').trim().replace(/\s+/g,'_');
-
-    /* ── Build clean self-contained HTML for the PDF ── */
-    const html=`
-<!DOCTYPE html>
-<html lang="${lang}" dir="${dir}">
-<head>
-<meta charset="UTF-8"/>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Serif+Display&family=Cairo:wght@400;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet"/>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:${isAr?"'Cairo',sans-serif":"'Plus Jakarta Sans',sans-serif"};color:#0b1220;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.cv{width:794px;min-height:1123px;background:#fff;overflow:hidden}
-
-/* Header */
-.cvh{background:linear-gradient(140deg,#0b1220 0%,#12264a 100%);color:#fff;padding:38px 42px 28px;position:relative;overflow:hidden}
-.cvh::before{content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:rgba(59,130,246,.12)}
-.cvh::after{content:'';position:absolute;bottom:-40px;left:30%;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.03)}
-.cvname{font-family:${isAr?"'Amiri',serif":"'DM Serif Display',serif"};font-size:2rem;font-weight:400;color:#fff;letter-spacing:-.02em;line-height:1.1;margin-bottom:4px;position:relative;z-index:1}
-.cvjob{font-size:.75rem;font-weight:500;color:rgba(255,255,255,.52);letter-spacing:.14em;text-transform:uppercase;margin-bottom:16px;position:relative;z-index:1}
-.cvcts{display:flex;flex-wrap:wrap;gap:16px;position:relative;z-index:1}
-.cvct{display:flex;align-items:center;gap:5px;font-size:.72rem;color:rgba(255,255,255,.7)}
-
-/* Body grid */
-.cvbody{display:grid;grid-template-columns:200px 1fr;min-height:780px}
-
-/* Sidebar */
-.cvsb{background:#f5f8fc;padding:26px 16px;border-right:1px solid #dce4ef}
-.cvsec{margin-bottom:22px}
-.cvstit-sb{font-size:.55rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:#2e3f56;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #2e3f56}
-
-/* Skills */
-.skch{display:inline-block;background:#12264a;color:#fff;padding:3px 8px;border-radius:4px;font-size:.65rem;margin:2px 2px 2px 0;font-weight:400}
-
-/* Languages */
-.cvlang{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
-.cvlang-nm{font-size:.76rem;font-weight:600;color:#0b1220}
-.cvlang-lv{font-size:.63rem;color:#6b7f96;margin-bottom:3px}
-.cvlbar{width:66px;height:4px;background:#dce4ef;border-radius:2px;overflow:hidden}
-.cvlbf{height:100%;background:#2355e8;border-radius:2px}
-
-/* Education */
-.cvit{margin-bottom:13px}
-.cvit-t{font-size:.8rem;font-weight:700;color:#0b1220;margin-bottom:1px}
-.cvit-s{font-size:.72rem;color:#2355e8;font-weight:600;margin-bottom:1px}
-.cvit-m{font-size:.67rem;color:#6b7f96}
-
-/* Main */
-.cvmain{padding:26px 30px}
-.cvstit-main{font-size:.55rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:#2355e8;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #2355e8}
-.cvsum{font-size:.78rem;color:#4e5e72;line-height:1.72;font-style:italic;margin-bottom:0}
-
-/* Experience */
-.exp-it{margin-bottom:14px}
-.exp-t{font-size:.85rem;font-weight:700;color:#0b1220;margin-bottom:1px}
-.exp-s{font-size:.75rem;color:#2355e8;font-weight:600;margin-bottom:2px}
-.exp-m{font-size:.67rem;color:#6b7f96;margin-bottom:4px}
-.exp-d{font-size:.75rem;color:#4e5e72;line-height:1.68}
-</style>
-</head>
-<body>
-<div class="cv">
-  <div class="cvh">
-    <div class="cvname">${esc(cvName)}</div>
-    <div class="cvjob">${esc(cvTitle)}</div>
-    <div class="cvcts">${contacts.map(c=>`<div class="cvct">${esc(c)}</div>`).join('')}</div>
-  </div>
-  <div class="cvbody">
-    <div class="cvsb">
-      ${skills.length?`<div class="cvsec"><div class="cvstit-sb">${t.cvLSk}</div><div>${skills.map(s=>`<span class="skch">${esc(s)}</span>`).join('')}</div></div>`:''}
-      ${langItems.length?`<div class="cvsec"><div class="cvstit-sb">${t.cvLLng}</div>${langItems.map(l=>`<div class="cvlang"><span class="cvlang-nm">${esc(l.nm)}</span><div><div class="cvlang-lv">${esc(l.lv)}</div><div class="cvlbar"><div class="cvlbf" style="width:${l.pct}%"></div></div></div></div>`).join('')}</div>`:''}
-      ${eduItems.length?`<div class="cvsec"><div class="cvstit-sb">${t.cvLEdu}</div>${eduItems.map(e=>`<div class="cvit"><div class="cvit-t">${esc(e.t)}</div><div class="cvit-s">${esc(e.s)}</div><div class="cvit-m">${esc(e.m)}</div></div>`).join('')}</div>`:''}
-    </div>
-    <div class="cvmain">
-      ${showSum?`<div class="cvsec"><div class="cvstit-main">${t.cvLSum}</div><div class="cvsum">${esc(cvSum)}</div></div>`:''}
-      ${expItems.length?`<div class="cvsec"><div class="cvstit-main">${t.cvLExp}</div>${expItems.map(e=>`<div class="exp-it"><div class="exp-t">${esc(e.t)}</div><div class="exp-s">${esc(e.s)}</div><div class="exp-m">${esc(e.m)}</div>${e.d?`<div class="exp-d">${e.d}</div>`:''}</div>`).join('')}</div>`:''}
-    </div>
-  </div>
-</div>
-</body>
-</html>`;
-
-    /* ── Mount hidden iframe, render, then export ── */
+    /* Mount in hidden iframe so fonts & layout render correctly at exact 794px */
     const iframe=document.createElement('iframe');
-    iframe.style.cssText='position:fixed;top:0;left:-9999px;width:794px;height:1123px;border:none;visibility:hidden;';
+    iframe.style.cssText='position:fixed;top:0;left:-9999px;width:794px;height:1200px;border:none;background:#fff;z-index:-1';
     document.body.appendChild(iframe);
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
 
-    await new Promise(resolve=>{
-      iframe.onload=resolve;
-      iframe.srcdoc=html;
-    });
-
-    /* Give fonts time to load */
+    /* Wait for fonts to load */
     await new Promise(r=>setTimeout(r,800));
 
-    const cvEl=iframe.contentDocument.querySelector('.cv');
+    const cvEl=iframe.contentDocument.body.firstElementChild;
 
     await html2pdf().set({
       margin:0,
-      filename:`${fileName}_CVNova.pdf`,
-      image:{type:'jpeg',quality:1},
+      filename:`${name}_CVNova.pdf`,
+      image:{type:'jpeg',quality:0.98},
       html2canvas:{
         scale:2,
         useCORS:true,
         allowTaint:true,
         letterRendering:true,
+        scrollX:0,scrollY:0,
+        windowWidth:794,
         backgroundColor:'#ffffff',
         logging:false,
-        width:794,
-        windowWidth:794,
+        foreignObjectRendering:false,
       },
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:false},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true},
       pagebreak:{mode:'avoid-all'},
     }).from(cvEl).save();
 
     showToast(t.toastPdfOk,'success');
-
   }catch(err){
     console.error('PDF error:',err);
     showToast(t.toastPdfErr,'error');
