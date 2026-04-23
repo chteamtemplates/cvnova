@@ -1425,26 +1425,42 @@ async function runAI(){
     const prompt=buildPrompt();
     const sys='You are an expert CV and cover-letter writer. Respond with the requested content only — no preamble, no disclaimers, no markdown headings, no notices. Keep output concise and polished.';
     const body={model:'openai',messages:[{role:'system',content:sys},{role:'user',content:prompt}],temperature:0.7,seed:Math.floor(Math.random()*1e6)};
+    const isNotice=(s)=>{
+      const h=s.slice(0,600);
+      if(/"status"\s*:\s*429/.test(h))return true;
+      if(/Queue full for IP/i.test(h))return true;
+      if(/\*\*IMPORTANT NOTICE\*\*/i.test(h))return true;
+      if(/enter\.pollinations\.ai/i.test(h)&&/migrate/i.test(h))return true;
+      return false;
+    };
+    const wait=(ms)=>new Promise(r=>setTimeout(r,ms));
     let text='';let lastErr='';
-    for(let attempt=0;attempt<3;attempt++){
+    const waits=[0,3500,6500,10000];
+    for(let attempt=0;attempt<waits.length;attempt++){
+      if(waits[attempt])await wait(waits[attempt]);
       try{
-        const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),30000);
-        const res=await fetch('https://text.pollinations.ai/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctrl.signal});
+        const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),35000);
+        const res=await fetch('https://text.pollinations.ai/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctrl.signal,cache:'no-store'});
         clearTimeout(to);
-        if(res.status===429){lastErr='Rate limited — retrying';await new Promise(r=>setTimeout(r,1500*(attempt+1)));continue}
-        if(!res.ok){lastErr='HTTP '+res.status;await new Promise(r=>setTimeout(r,800));continue}
+        if(res.status===429){lastErr='rate_limited';continue}
+        if(!res.ok){lastErr='HTTP '+res.status;continue}
         const raw=(await res.text()).trim();
-        if(!raw){lastErr='Empty response';continue}
-        if(/IMPORTANT NOTICE|deprecation|Queue full|Please migrate/i.test(raw.slice(0,500))){lastErr='Service busy';await new Promise(r=>setTimeout(r,1500*(attempt+1)));continue}
+        if(!raw){lastErr='empty';continue}
+        if(isNotice(raw)){lastErr='queue_full';continue}
         text=raw.replace(/^["']|["']$/g,'');break;
-      }catch(e){lastErr=e.message||'Network error';await new Promise(r=>setTimeout(r,800))}
+      }catch(e){lastErr=(e&&e.message)||'network'}
     }
-    if(!text)throw new Error(lastErr||'No response');
+    if(!text){
+      const msg=(lastErr==='rate_limited'||lastErr==='queue_full')
+        ?'Serveur IA occupé — réessayez dans 30 secondes'
+        :(a.err+' ('+lastErr+')');
+      throw new Error(msg);
+    }
     state.aiLast=text;
     out.classList.remove('empty');out.textContent=text;
     actions.style.display='flex';
   } catch(err){
-    out.classList.add('empty');out.textContent=a.err+' ('+err.message+')';
+    out.classList.add('empty');out.textContent=err.message||a.err;
   } finally {
     state.aiBusy=false;if(btn)btn.disabled=false;
   }
