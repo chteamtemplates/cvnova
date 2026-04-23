@@ -60,6 +60,7 @@ body.ar #toast-container{right:auto;left:28px}
   animation:toastIn .35s cubic-bezier(.34,1.56,.64,1) both;
   max-width:320px;
 }
+body.ar .toast{animation:toastInRtl .35s cubic-bezier(.34,1.56,.64,1) both}
 .toast.success{background:#065f46;border-left:3px solid #10b981}
 .toast.error{background:#7f1d1d;border-left:3px solid #ef4444}
 .toast.info{background:#1e3a8a;border-left:3px solid #3b82f6}
@@ -69,7 +70,7 @@ body.ar .toast.info{border-left:none;border-right:3px solid #3b82f6}
 .toast-icon{font-size:1.1rem;flex-shrink:0}
 .toast.out{animation:toastOut .3s ease forwards}
 @keyframes toastIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
-body.ar @keyframes toastIn{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastInRtl{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:translateX(0)}}
 @keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(60px)}}
 
 /* ─── PROGRESS BAR ───────────────────── */
@@ -1331,21 +1332,25 @@ function buildCVHtml(){
   const sbSecTitle=(label)=>`<div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:#2e3f56;border-bottom:2px solid #2e3f56;padding-bottom:5px;margin-bottom:10px">${label}</div>`;
 
   const googleFonts=isAr
-    ?'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Amiri:wght@400;700&display=swap'
-    :'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap';
+    ?'https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Amiri:ital,wght@0,400;0,700;1,400&display=swap'
+    :'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap';
 
   return`<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head>
 <meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="${googleFonts}" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:${fontFace};background:#fff;width:794px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+html,body{width:794px;min-height:1123px;background:#ffffff;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+body{font-family:${fontFace};background:#fff}
 </style>
 </head>
 <body>
-<div style="width:794px;background:#fff;font-family:${fontFace};direction:${dir}">
+<div style="width:794px;min-height:1123px;background:#fff;font-family:${fontFace};direction:${dir};overflow:hidden">
   <!-- HEADER -->
   <div style="background:linear-gradient(140deg,#0b1220 0%,#12264a 100%);color:#fff;padding:36px 42px 30px;position:relative;overflow:hidden">
     <div style="position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:rgba(59,130,246,.12)"></div>
@@ -1356,9 +1361,9 @@ body{font-family:${fontFace};background:#fff;width:794px;-webkit-print-color-adj
     </div>
   </div>
   <!-- BODY -->
-  <div style="display:grid;grid-template-columns:220px 1fr;min-height:900px">
+  <div style="display:grid;grid-template-columns:220px 1fr;min-height:900px;width:794px">
     <!-- SIDEBAR -->
-    <div style="background:#f5f8fc;padding:26px 18px;border-right:1px solid #dce4ef">
+    <div style="background:#f5f8fc;padding:26px 18px;border-${isAr?'left':'right'}:1px solid #dce4ef">
       ${sks.length?`<div style="margin-bottom:22px">${sbSecTitle(t.cvLSk)}<div>${skHtml}</div></div>`:''}
       ${lngs.length?`<div style="margin-bottom:22px">${sbSecTitle(t.cvLLng)}${lngHtml}</div>`:''}
       ${edus.length?`<div style="margin-bottom:22px">${sbSecTitle(t.cvLEdu)}${eduHtml}</div>`:''}
@@ -1387,40 +1392,56 @@ async function expPDF(){
   if(lbl)lbl.textContent='⏳ …';
   if(lblTop)lblTop.textContent='⏳ …';
 
+  let iframe=null;
   try{
     const name=($id('inp-name').value||'CV').trim().replace(/\s+/g,'_');
-    const html=buildCVHtml();
+    const htmlContent=buildCVHtml();
 
-    /* Mount in hidden iframe so fonts & layout render correctly at exact 794px */
-    const iframe=document.createElement('iframe');
-    iframe.style.cssText='position:fixed;top:0;left:-9999px;width:794px;height:1200px;border:none;background:#fff;z-index:-1';
+    /* Mount in hidden iframe at exact A4 width so layout renders correctly */
+    iframe=document.createElement('iframe');
+    iframe.style.cssText='position:fixed;top:-9999px;left:0;width:794px;height:1123px;border:none;visibility:hidden;z-index:-999';
     document.body.appendChild(iframe);
-    iframe.contentDocument.open();
-    iframe.contentDocument.write(html);
-    iframe.contentDocument.close();
 
-    /* Wait for fonts to load */
-    await new Promise(r=>setTimeout(r,800));
+    await new Promise((resolve,reject)=>{
+      iframe.onload=resolve;
+      iframe.onerror=reject;
+      // Write HTML to iframe
+      const doc=iframe.contentDocument||iframe.contentWindow.document;
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
+      // Fallback timeout if onload doesn't fire
+      setTimeout(resolve,3000);
+    });
 
-    const cvEl=iframe.contentDocument.body.firstElementChild;
+    // Wait for fonts and images to render
+    await new Promise(r=>setTimeout(r,2200));
+
+    const doc2=iframe.contentDocument||iframe.contentWindow.document;
+    const cvEl=doc2.body.firstElementChild||doc2.body;
 
     await html2pdf().set({
-      margin:0,
+      margin:[0,0,0,0],
       filename:`${name}_CVNova.pdf`,
-      image:{type:'jpeg',quality:0.98},
+      image:{type:'jpeg',quality:1},
       html2canvas:{
         scale:2,
         useCORS:true,
         allowTaint:true,
         letterRendering:true,
-        scrollX:0,scrollY:0,
+        scrollX:0,
+        scrollY:0,
         windowWidth:794,
+        windowHeight:1123,
+        width:794,
         backgroundColor:'#ffffff',
         logging:false,
         foreignObjectRendering:false,
+        removeContainer:false,
+        imageTimeout:8000,
       },
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true},
-      pagebreak:{mode:'avoid-all'},
+      pagebreak:{mode:['css','legacy'],before:'.page-break',avoid:'.no-break'},
     }).from(cvEl).save();
 
     showToast(t.toastPdfOk,'success');
@@ -1428,6 +1449,8 @@ async function expPDF(){
     console.error('PDF error:',err);
     showToast(t.toastPdfErr,'error');
   }finally{
+    if(iframe&&iframe.parentNode)iframe.parentNode.removeChild(iframe);
+    // Cleanup any stray iframes
     document.querySelectorAll('iframe[style*="-9999px"]').forEach(n=>n.remove());
     btn.disabled=false;
     if(lbl)lbl.textContent=orig;
@@ -1449,13 +1472,18 @@ async function expPDF(){
   $id('inp-city').value='Alger, Algérie';
   $id('inp-li').value='linkedin.com/in/aminebouaziz';
   $id('inp-sum').value="Développeur Full Stack passionné avec 5 ans d'expérience dans la création d'applications web performantes. Spécialisé en React, Node.js et Python, je m'investis dans des projets innovants à fort impact.";
-  addEdu({deg:'Master en Génie Logiciel',sch:'USTHB Alger',yr:'2017–2019',ct:'Alger'});
-  addEdu({deg:'Licence Informatique',sch:'USTHB Alger',yr:'2014–2017',ct:'Alger'});
-  addExp({tit:'Développeur Full Stack Senior',co:'TechAlgeria SARL',per:'Jan 2021 – Présent',ct:'Alger',des:"Développement d'applications SaaS avec React et Node.js.\nMise en place d'une architecture microservices réduisant la latence de 40%.\nEncadrement d'une équipe de 3 développeurs juniors."});
-  addExp({tit:'Développeur Frontend',co:'StartupDZ',per:'Mar 2019 – Déc 2020',ct:'Alger',des:"Création d'interfaces utilisateur modernes et responsives.\nIntégration d'APIs REST et GraphQL.\nAmélioration des performances web (score Lighthouse: 95+)."});
+  edus.push({id:1001,deg:'Master en Génie Logiciel',sch:'USTHB Alger',yr:'2017–2019',ct:'Alger'});
+  edus.push({id:1002,deg:'Licence Informatique',sch:'USTHB Alger',yr:'2014–2017',ct:'Alger'});
+  renderEdu();
+  exps.push({id:2001,tit:'Développeur Full Stack Senior',co:'TechAlgeria SARL',per:'Jan 2021 – Présent',ct:'Alger',des:"Développement d'applications SaaS avec React et Node.js.\nMise en place d'une architecture microservices réduisant la latence de 40%.\nEncadrement d'une équipe de 3 développeurs juniors."});
+  exps.push({id:2002,tit:'Développeur Frontend',co:'StartupDZ',per:'Mar 2019 – Déc 2020',ct:'Alger',des:"Création d'interfaces utilisateur modernes et responsives.\nIntégration d'APIs REST et GraphQL.\nAmélioration des performances web (score Lighthouse: 95+)."});
+  renderExp();
   sks=['React','Node.js','Python','Docker','PostgreSQL','Git','TypeScript','Agile/Scrum'];
   renderSk();
-  addLng({nm:'Arabe',lv:'Natif'});addLng({nm:'Français',lv:'Courant'});addLng({nm:'Anglais',lv:'Avancé'});
+  lngs.push({id:3001,nm:'Arabe',lv:'Natif'});
+  lngs.push({id:3002,nm:'Français',lv:'Courant'});
+  lngs.push({id:3003,nm:'Anglais',lv:'Avancé'});
+  renderLng();
   genCV();
   updateProgress();
 })();
