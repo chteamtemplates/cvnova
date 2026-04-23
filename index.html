@@ -20,7 +20,7 @@
   --wh:#ffffff;--acc:#f59e0b;--grn:#0ea571;--red:#ef4444;--pur:#7c3aed;
   --ff:'Plus Jakarta Sans',sans-serif;
   --fd:'DM Serif Display',serif;
-  --fa:'Amiri',serif;
+  --fa:'Cairo',sans-serif;
   --fad:'Amiri',serif;
   --sh1:0 1px 4px rgba(10,18,32,.07),0 1px 2px rgba(10,18,32,.04);
   --sh2:0 4px 20px rgba(10,18,32,.09),0 2px 5px rgba(10,18,32,.05);
@@ -436,9 +436,7 @@ body.ar .rmbtn{right:auto;left:9px}
 .btn-pdftop:hover{transform:translateY(-2px);box-shadow:0 6px 22px rgba(26,69,200,.48)}
 
 /* ─── CV OUTPUT ───────────────────────────── */
-#cvo{
-  width:210mm;
-  min-height:297mm;background:#fff;width:100%;max-width:680px;box-shadow:0 20px 60px rgba(10,18,32,.18),0 4px 12px rgba(10,18,32,.08);border-radius:6px;overflow:hidden;font-family:'Plus Jakarta Sans',sans-serif}
+#cvo{background:#fff;width:100%;max-width:680px;box-shadow:0 20px 60px rgba(10,18,32,.18),0 4px 12px rgba(10,18,32,.08);border-radius:6px;overflow:hidden;font-family:'Plus Jakarta Sans',sans-serif}
 #cvo.ar-cv{font-family:var(--fa);direction:rtl}
 .cvh{background:linear-gradient(140deg,#0b1220 0%,#12264a 100%);color:#fff;padding:38px 42px 32px;position:relative;overflow:hidden}
 .cvh::before{content:'';position:absolute;top:-70px;right:-70px;width:240px;height:240px;border-radius:50%;background:rgba(59,130,246,.1)}
@@ -521,9 +519,6 @@ body.ar .rmbtn{right:auto;left:9px}
   .sec-head{margin-bottom:48px}
   .hstat strong{font-size:1.4rem}
 }
-
-#cvo *{page-break-inside:avoid !important;}
-
 </style>
 </head>
 <body>
@@ -1347,9 +1342,6 @@ function buildCVHtml(){
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:${fontFace};background:#fff;width:794px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-
-#cvo *{page-break-inside:avoid !important;}
-
 </style>
 </head>
 <body>
@@ -1378,6 +1370,67 @@ body{font-family:${fontFace};background:#fff;width:794px;-webkit-print-color-adj
     </div>
   </div>
 </div>
+
+<style>
+
+/* ===== PDF A4 FIX (AUTO PATCH) ===== */
+#cvo{
+width:210mm !important;
+height:297mm !important;
+overflow:hidden !important;
+background:#fff !important;
+}
+
+#cvo *{
+page-break-inside:avoid !important;
+}
+
+.cvbody{
+height:calc(297mm - 120px) !important;
+overflow:hidden !important;
+}
+
+</style>
+
+<script>
+
+/* ===== FORCE STABLE PDF EXPORT ===== */
+function downloadPDF(){
+
+const element = document.getElementById("cvo");
+
+html2pdf().set({
+
+margin:0,
+
+filename:"CVNova_CV.pdf",
+
+image:{
+type:"jpeg",
+quality:1
+},
+
+html2canvas:{
+scale:3,
+useCORS:true
+},
+
+jsPDF:{
+unit:"mm",
+format:"a4",
+orientation:"portrait"
+},
+
+pagebreak:{
+mode:["avoid-all","css","legacy"]
+}
+
+}).from(element).save();
+
+}
+
+</script>
+
 </body></html>`;
 }
 
@@ -1468,5 +1521,66 @@ async function expPDF(){
   updateProgress();
 })();
 </script>
+
+<style>
+
+/* ===== PDF A4 FIX (AUTO PATCH) ===== */
+#cvo{
+width:210mm !important;
+height:297mm !important;
+overflow:hidden !important;
+background:#fff !important;
+}
+
+#cvo *{
+page-break-inside:avoid !important;
+}
+
+.cvbody{
+height:calc(297mm - 120px) !important;
+overflow:hidden !important;
+}
+
+</style>
+
+<script>
+
+/* ===== FORCE STABLE PDF EXPORT ===== */
+function downloadPDF(){
+
+const element = document.getElementById("cvo");
+
+html2pdf().set({
+
+margin:0,
+
+filename:"CVNova_CV.pdf",
+
+image:{
+type:"jpeg",
+quality:1
+},
+
+html2canvas:{
+scale:3,
+useCORS:true
+},
+
+jsPDF:{
+unit:"mm",
+format:"a4",
+orientation:"portrait"
+},
+
+pagebreak:{
+mode:["avoid-all","css","legacy"]
+}
+
+}).from(element).save();
+
+}
+
+</script>
+
 </body>
 </html>
