@@ -1423,11 +1423,23 @@ async function runAI(){
   const btn=document.querySelector('.ai-go');if(btn){btn.disabled=true}
   try{
     const prompt=buildPrompt();
-    const url='https://text.pollinations.ai/'+encodeURIComponent(prompt)+'?model=openai';
-    const res=await fetch(url);
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    let text=await res.text();
-    text=text.trim().replace(/^["']|["']$/g,'');
+    const sys='You are an expert CV and cover-letter writer. Respond with the requested content only — no preamble, no disclaimers, no markdown headings, no notices. Keep output concise and polished.';
+    const body={model:'openai',messages:[{role:'system',content:sys},{role:'user',content:prompt}],temperature:0.7,seed:Math.floor(Math.random()*1e6)};
+    let text='';let lastErr='';
+    for(let attempt=0;attempt<3;attempt++){
+      try{
+        const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),30000);
+        const res=await fetch('https://text.pollinations.ai/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctrl.signal});
+        clearTimeout(to);
+        if(res.status===429){lastErr='Rate limited — retrying';await new Promise(r=>setTimeout(r,1500*(attempt+1)));continue}
+        if(!res.ok){lastErr='HTTP '+res.status;await new Promise(r=>setTimeout(r,800));continue}
+        const raw=(await res.text()).trim();
+        if(!raw){lastErr='Empty response';continue}
+        if(/IMPORTANT NOTICE|deprecation|Queue full|Please migrate/i.test(raw.slice(0,500))){lastErr='Service busy';await new Promise(r=>setTimeout(r,1500*(attempt+1)));continue}
+        text=raw.replace(/^["']|["']$/g,'');break;
+      }catch(e){lastErr=e.message||'Network error';await new Promise(r=>setTimeout(r,800))}
+    }
+    if(!text)throw new Error(lastErr||'No response');
     state.aiLast=text;
     out.classList.remove('empty');out.textContent=text;
     actions.style.display='flex';
